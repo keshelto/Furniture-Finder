@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Furniture Deal Finder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f5f2; --surface: #fff; --border: #e2ddd8; --text: #1a1714;
+      --muted: #7a7268; --accent: #2d6a4f; --accent-light: #e8f4ee;
+      --accent-dark: #1b4332; --warn: #b45309; --warn-light: #fef3c7;
+      --danger: #dc2626; --shadow: 0 2px 8px rgba(0,0,0,.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,.12); --r: 12px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    header { background: var(--accent-dark); color: #fff; padding: 18px 24px; display: flex; align-items: center; gap: 12px; }
+    header .logo { font-size: 26px; }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header p  { font-size: 0.8rem; opacity: .7; margin-top: 2px; }
+
+    main { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: pointer;
+      user-select: none;
+    }
+    .card-header h2 { font-size: 0.97rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .card-header .chevron { transition: transform .25s; font-size: 12px; color: var(--muted); }
+    .card-header.open .chevron { transform: rotate(180deg); }
+    .card-body { padding: 18px; }
+    .card-body.hidden { display: none; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      flex: 1; padding: 12px; background: none; border: none; cursor: pointer;
+      font-size: .88rem; font-weight: 500; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: color .2s, background .2s;
+    }
+    .tab-btn.active { color: var(--accent); background: var(--accent-light); border-bottom: 2px solid var(--accent); }
+    .tab-btn:hover:not(.active) { background: var(--bg); }
+    .panel { padding: 18px; }
+    .panel.hidden { display: none; }
+
+    /* Form */
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px; }
+    .field label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .field input {
+      border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 13px;
+      font-size: .93rem; font-family: var(--font); color: var(--text); background: var(--bg); outline: none;
+      transition: border-color .2s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .btn { padding: 9px 20px; border: none; border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: background .2s, transform .1s; }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+    .btn-secondary { background: var(--bg); border: 1.5px solid var(--border); color: var(--text); }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+    /* Upload area */
+    .upload-area {
+      border: 2px dashed var(--border); border-radius: 10px; padding: 28px 16px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative;
+    }
+    .upload-area:hover, .upload-area.drag-over { border-color: var(--accent); background: var(--accent-light); }
+    .upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-area .icon { font-size: 32px; margin-bottom: 6px; }
+    .upload-area p { color: var(--muted); font-size: .85rem; }
+    .upload-area strong { color: var(--accent); }
+
+    /* Preview grid for mood board */
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 12px; }
+    .preview-thumb { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .preview-thumb button {
+      position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,.55); color: #fff;
+      border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Single image preview */
+    .img-preview { display: none; margin-top: 12px; position: relative; text-align: center; }
+    .img-preview.visible { display: block; }
+    .img-preview img { max-height: 200px; max-width: 100%; border-radius: 8px; box-shadow: var(--shadow); }
+    .img-preview .btn-rm {
+      position: absolute; top: -8px; right: calc(50% - 60px);
+      background: var(--danger); color: #fff; border: none; border-radius: 50%;
+      width: 24px; height: 24px; font-size: 12px; cursor: pointer;
+    }
+
+    /* Style profile badge */
+    .style-profile {
+      background: var(--accent-light); border: 1px solid var(--accent);
+      border-radius: 10px; padding: 14px 16px; margin-top: 14px;
+    }
+    .style-profile h3 { font-size: .9rem; color: var(--accent-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .style-profile .style-name { font-size: 1.1rem; font-weight: 700; color: var(--accent-dark); margin-bottom: 4px; }
+    .style-profile .style-summary { font-size: .83rem; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+    .chip {
+      padding: 2px 9px; border-radius: 20px; font-size: .74rem; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    }
+    .chip.colour { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .chip.material { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+    .chip.avoid { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .style-profile .tips-list { font-size: .8rem; color: var(--muted); padding-left: 16px; line-height: 1.8; }
+    .btn-clear-style { font-size: .75rem; padding: 3px 10px; border-radius: 5px; }
+
+    /* Loading */
+    .loading { display: none; text-align: center; padding: 36px 16px; }
+    .loading.visible { display: block; }
+    .spinner { width: 38px; height: 38px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-steps span { display: block; font-size: .85rem; color: var(--muted); line-height: 2; transition: opacity .3s; }
+
+    /* Results */
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .results-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .results-count { font-size: .8rem; color: var(--muted); }
+    .filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-bar label { font-size: .8rem; color: var(--muted); font-weight: 500; }
+    .filter-bar select { border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: .83rem; background: var(--surface); cursor: pointer; }
+
+    .id-badge {
+      background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px;
+      padding: 10px 14px; margin-bottom: 14px; font-size: .85rem; color: var(--accent-dark);
+    }
+    .id-badge strong { display: block; margin-bottom: 2px; }
+
+    .results-grid { display: grid; gap: 12px; }
+    .result-card {
+      background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow);
+      padding: 15px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+      transition: box-shadow .2s, transform .15s;
+    }
+    .result-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+    .card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+    .card-title { font-weight: 600; font-size: .95rem; flex: 1; min-width: 0; word-break: break-word; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: .7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .badge-excellent { background: #dcfce7; color: #166534; }
+    .badge-good      { background: #dbeafe; color: #1e40af; }
+    .badge-fair      { background: #fef9c3; color: #854d0e; }
+    .badge-match     { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-clash     { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .card-meta { display: flex; gap: 10px; font-size: .8rem; color: var(--muted); margin-bottom: 7px; flex-wrap: wrap; }
+    .card-desc { font-size: .84rem; color: var(--muted); line-height: 1.5; }
+    .card-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; }
+    .price { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+    .price.free { color: var(--warn); }
+    .btn-view { display: inline-block; padding: 6px 14px; background: var(--accent); color: #fff; border-radius: 6px; text-decoration: none; font-size: .8rem; font-weight: 600; transition: background .2s; }
+    .btn-view:hover { background: var(--accent-dark); }
+
+    /* State boxes */
+    .state-box { background: var(--surface); border-radius: var(--r); padding: 36px 20px; text-align: center; box-shadow: var(--shadow); }
+    .state-box .icon { font-size: 40px; margin-bottom: 10px; }
+    .state-box h3 { font-size: 1rem; margin-bottom: 5px; }
+    .state-box p { font-size: .85rem; color: var(--muted); max-width: 300px; margin: 0 auto; }
+    .state-box.error { border-left: 4px solid var(--danger); }
+
+    @media (max-width: 500px) {
+      .result-card { grid-template-columns: 1fr; }
+      .card-side { flex-direction: row; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <span class="logo">🛋️</span>
+  <div>
+    <h1>Furniture Deal Finder</h1>
+    <p>Find cheap furniture on Gumtree, Facebook Marketplace &amp; more</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ① Home Style / Mood Board -->
+  <div class="card" id="style-card">
+    <div class="card-header open" onclick="toggleCard('style-card')">
+      <h2>🎨 My Home Style <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(optional — improves results)</span></h2>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="card-body" id="style-body">
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">
+        Upload 1–5 photos of your home or rooms you love. Claude will analyse your style and
+        use it to find furniture that actually matches your space.
+      </p>
+
+      <div class="upload-area" id="mood-upload"
+           ondragover="dragOver(event,'mood-upload')" ondragleave="dragLeave('mood-upload')" ondrop="dropMood(event)">
+        <input type="file" id="mood-input" accept="image/*" multiple onchange="moodFilesSelected(this.files)" />
+        <div class="icon">🏠</div>
+        <p><strong>Click or drag photos of your home</strong></p>
+        <p>Up to 5 photos — bedroom, living room, kitchen etc.</p>
+      </div>
+
+      <div class="preview-grid" id="mood-previews"></div>
+
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="analyse-btn" onclick="analyseStyle()" disabled>✨ Analyse My Style</button>
+        <button class="btn btn-secondary btn-clear-style" id="clear-style-btn" onclick="clearStyle()" style="display:none">✕ Clear Style</button>
+      </div>
+
+      <div id="style-result" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ② Search -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="text" onclick="switchTab('text')">🔍 Search by Text</button>
+      <button class="tab-btn" data-tab="image" onclick="switchTab('image')">📷 Search by Photo</button>
+    </div>
+
+    <!-- Text -->
+    <div class="panel" id="panel-text">
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>What are you looking for?</label>
+          <input id="q" type="text" placeholder="e.g. oak dining table, grey corner sofa, IKEA wardrobe…"
+                 onkeydown="if(event.key==='Enter')doTextSearch()" />
+        </div>
+        <div class="field">
+          <label>Location (optional)</label>
+          <input id="loc" type="text" placeholder="e.g. London"
+                 onkeydown="if(event.key==='Enter')doTextSearch()" />
+        </div>
+        <button class="btn btn-primary" style="align-self:flex-end" onclick="doTextSearch()">Find Deals</button>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="panel hidden" id="panel-image">
+      <div class="upload-area" id="img-upload"
+           ondragover="dragOver(event,'img-upload')" ondragleave="dragLeave('img-upload')" ondrop="dropImg(event)">
+        <input type="file" id="img-input" accept="image/*" onchange="imgFileSelected(this.files[0])" />
+        <div class="icon">🪑</div>
+        <p><strong>Click or drag a photo of furniture you like</strong></p>
+        <p>We'll identify it and find similar deals</p>
+      </div>
+
+      <div class="img-preview" id="img-preview">
+        <img id="img-thumb" src="" alt="Preview" />
+        <button class="btn-rm" onclick="removeImg()">✕</button>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn btn-secondary" onclick="document.getElementById('cam-input').click()" style="flex:0 0 auto">
+          📷 Take Photo
+          <input type="file" id="cam-input" accept="image/*" capture="environment"
+                 style="display:none" onchange="imgFileSelected(this.files[0])" />
+        </button>
+        <div class="field">
+          <input id="loc2" type="text" placeholder="Location (optional)" />
+        </div>
+        <button class="btn btn-primary" id="img-search-btn" onclick="doImageSearch()" disabled style="flex:0 0 auto">Find Similar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-steps" id="steps"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-area" style="display:none">
+    <div class="results-header">
+      <h2 id="res-title">Results</h2>
+      <span class="results-count" id="res-count"></span>
+    </div>
+    <div id="id-info" class="id-badge" style="display:none"></div>
+    <div class="filter-bar" id="filter-bar" style="display:none">
+      <label>Sort by:</label>
+      <select id="sort" onchange="renderCards()">
+        <option value="">Default</option>
+        <option value="price-asc">Price ↑</option>
+        <option value="price-desc">Price ↓</option>
+        <option value="rating">Deal rating</option>
+        <option value="match">Style match</option>
+      </select>
+    </div>
+    <div id="grid" class="results-grid"></div>
+  </div>
+
+  <!-- Error -->
+  <div id="err-area" style="display:none" class="state-box error">
+    <div class="icon">⚠️</div>
+    <h3>Something went wrong</h3>
+    <p id="err-msg"></p>
+  </div>
+
+</main>
+<script>
+// ── state ──
+let allResults = [];
+let selectedImgFile = null;
+let moodFiles = [];
+let styleProfile = null;
+
+// Restore saved style from localStorage
+try {
+  const saved = localStorage.getItem('furniturefindr_style');
+  if (saved) { styleProfile = JSON.parse(saved); renderStyleProfile(styleProfile); }
+} catch(e) {}
+
+// ── card collapse ──
+function toggleCard(id) {
+  const header = document.querySelector(`#${id} .card-header`);
+  const body = document.querySelector(`#${id} .card-body`);
+  header.classList.toggle('open');
+  body.classList.toggle('hidden');
+}
+
+// ── tab switch ──
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('panel-' + t).classList.remove('hidden');
+}
+
+// ── drag-drop helpers ──
+function dragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function dragLeave(id)    { document.getElementById(id).classList.remove('drag-over'); }
+
+// ── mood board ──
+function dropMood(e) {
+  e.preventDefault(); dragLeave('mood-upload');
+  [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')).forEach(addMoodFile);
+}
+function moodFilesSelected(files) { [...files].forEach(addMoodFile); }
+function addMoodFile(f) {
+  if (moodFiles.length >= 5) return;
+  moodFiles.push(f);
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const grid = document.getElementById('mood-previews');
+    const idx = moodFiles.length - 1;
+    const div = document.createElement('div');
+    div.className = 'preview-thumb';
+    div.id = 'mood-thumb-' + idx;
+    div.innerHTML = `<img src="${ev.target.result}" /><button onclick="removeMood(${idx})">✕</button>`;
+    grid.appendChild(div);
+    document.getElementById('analyse-btn').disabled = false;
+  };
+  reader.readAsDataURL(f);
+}
+function removeMood(idx) {
+  moodFiles.splice(idx, 1);
+  document.getElementById('mood-previews').innerHTML = '';
+  moodFiles.forEach((f, i) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const div = document.createElement('div');
+      div.className = 'preview-thumb';
+      div.innerHTML = `<img src="${ev.target.result}" /><button onclick="removeMood(${i})">✕</button>`;
+      document.getElementById('mood-previews').appendChild(div);
+    };
+    reader.readAsDataURL(f);
+  });
+  document.getElementById('analyse-btn').disabled = moodFiles.length === 0;
+}
+
+async function analyseStyle() {
+  if (!moodFiles.length) return;
+  showLoad(['🏠 Analysing your home photos…', '🎨 Identifying your style…', '✨ Building style profile…']);
+  const form = new FormData();
+  moodFiles.forEach(f => form.append('images', f));
+  try {
+    const res = await fetch('/api/analyze-style', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Analysis failed');
+    styleProfile = data;
+    localStorage.setItem('furniturefindr_style', JSON.stringify(data));
+    hideLoad();
+    renderStyleProfile(data);
+  } catch(err) { showErr(err.message); }
+}
+
+function renderStyleProfile(p) {
+  if (!p) return;
+  document.getElementById('clear-style-btn').style.display = '';
+  const el = document.getElementById('style-result');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="style-profile">
+      <h3>✅ Your home style detected</h3>
+      <div class="style-name">${h(p.style_name || 'Your Style')}</div>
+      <div class="style-summary">${h(p.style_summary || '')}</div>
+      ${p.colours?.length ? `<div style="font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:4px">COLOURS</div><div class="chips">${p.colours.map(c=>`<span class="chip colour">${h(c)}</span>`).join('')}</div>` : ''}
+      ${p.materials?.length ? `<div style="font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:4px;margin-top:6px">MATERIALS</div><div class="chips">${p.materials.map(m=>`<span class="chip material">${h(m)}</span>`).join('')}</div>` : ''}
+      ${p.avoid?.length ? `<div style="font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:4px;margin-top:6px">AVOID</div><div class="chips">${p.avoid.map(a=>`<span class="chip avoid">${h(a)}</span>`).join('')}</div>` : ''}
+      ${p.shopping_tips?.length ? `<div style="font-size:.75rem;font-weight:600;color:var(--muted);margin:8px 0 4px">SHOPPING TIPS</div><ul class="tips-list">${p.shopping_tips.map(t=>`<li>${h(t)}</li>`).join('')}</ul>` : ''}
+    </div>`;
+}
+
+function clearStyle() {
+  styleProfile = null;
+  localStorage.removeItem('furniturefindr_style');
+  document.getElementById('style-result').style.display = 'none';
+  document.getElementById('style-result').innerHTML = '';
+  document.getElementById('clear-style-btn').style.display = 'none';
+  moodFiles = [];
+  document.getElementById('mood-previews').innerHTML = '';
+  document.getElementById('mood-input').value = '';
+  document.getElementById('analyse-btn').disabled = true;
+}
+
+// ── image search tab ──
+function dropImg(e) { e.preventDefault(); dragLeave('img-upload'); imgFileSelected(e.dataTransfer.files[0]); }
+function imgFileSelected(f) {
+  if (!f || !f.type.startsWith('image/')) return;
+  selectedImgFile = f;
+  const r = new FileReader();
+  r.onload = ev => {
+    document.getElementById('img-thumb').src = ev.target.result;
+    document.getElementById('img-preview').classList.add('visible');
+    document.getElementById('img-search-btn').disabled = false;
+  };
+  r.readAsDataURL(f);
+}
+function removeImg() {
+  selectedImgFile = null;
+  document.getElementById('img-preview').classList.remove('visible');
+  document.getElementById('img-thumb').src = '';
+  document.getElementById('img-input').value = '';
+  document.getElementById('cam-input').value = '';
+  document.getElementById('img-search-btn').disabled = true;
+}
+
+// ── searches ──
+async function doTextSearch() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) { document.getElementById('q').focus(); return; }
+  const loc = document.getElementById('loc').value.trim();
+  showLoad(['🔍 Searching Gumtree, Facebook Marketplace & more…', '⏳ Finding the best deals…', '📊 Ranking by value…']);
+  const form = new FormData();
+  form.append('query', q);
+  form.append('location', loc);
+  if (styleProfile) form.append('style_profile', JSON.stringify(styleProfile));
+  try {
+    const res = await fetch('/api/search', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Search failed');
+    allResults = data.results || [];
+    showResults(`Deals for "${q}"`, data.count, null, null);
+  } catch(err) { showErr(err.message); }
+}
+
+async function doImageSearch() {
+  if (!selectedImgFile) return;
+  const loc = document.getElementById('loc2').value.trim();
+  showLoad(['🔍 Analysing your photo…', '🛋️ Identifying the furniture…', '🌐 Searching for similar deals…', '📊 Ranking results…']);
+  const form = new FormData();
+  form.append('image', selectedImgFile);
+  form.append('location', loc);
+  if (styleProfile) form.append('style_profile', JSON.stringify(styleProfile));
+  try {
+    const res = await fetch('/api/search-by-image', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Search failed');
+    allResults = data.results || [];
+    showResults('Similar furniture deals', data.count, data.identified_furniture, data.search_query);
+  } catch(err) { showErr(err.message); }
+}
+
+// ── render results ──
+function renderCards() {
+  const grid = document.getElementById('grid');
+  if (!allResults.length) {
+    grid.innerHTML = `<div class="state-box"><div class="icon">🔎</div><h3>No results found</h3><p>Try different keywords or a broader location.</p></div>`;
+    return;
+  }
+  const sort = document.getElementById('sort').value;
+  const matchOrder = { 'Great match': 0, 'Good match': 1, 'Neutral': 2, 'Style clash': 3 };
+  const ratingOrder = { Excellent: 0, Good: 1, Fair: 2 };
+  const sorted = [...allResults].sort((a,b) => {
+    if (sort === 'price-asc')  return (a.price_value||0) - (b.price_value||0);
+    if (sort === 'price-desc') return (b.price_value||0) - (a.price_value||0);
+    if (sort === 'rating')     return (ratingOrder[a.deal_rating]??3) - (ratingOrder[b.deal_rating]??3);
+    if (sort === 'match')      return (matchOrder[a.style_match]??4) - (matchOrder[b.style_match]??4);
+    return 0;
+  });
+  grid.innerHTML = sorted.map(r => {
+    const rCls = { Excellent:'badge-excellent', Good:'badge-good', Fair:'badge-fair' }[r.deal_rating] || 'badge-fair';
+    const mCls = r.style_match === 'Great match' || r.style_match === 'Good match' ? 'badge-match' :
+                 r.style_match === 'Style clash' ? 'badge-clash' : '';
+    const priceClass = (r.price||'').toLowerCase().includes('free') ? 'free' : '';
+    const link = r.url && r.url !== '#'
+      ? `<a href="${h(r.url)}" target="_blank" rel="noopener" class="btn-view">View →</a>`
+      : `<span style="font-size:.75rem;color:var(--muted)">${h(r.site||'')}</span>`;
+    return `
+    <div class="result-card">
+      <div>
+        <div class="card-top">
+          <span class="card-title">${h(r.title||'No title')}</span>
+          ${r.deal_rating ? `<span class="badge ${rCls}">${h(r.deal_rating)}</span>` : ''}
+          ${r.style_match && mCls ? `<span class="badge ${mCls}">${h(r.style_match)}</span>` : ''}
+        </div>
+        <div class="card-meta">
+          ${r.location ? `<span>📍 ${h(r.location)}</span>` : ''}
+          ${r.site ? `<span>🌐 ${h(r.site)}</span>` : ''}
+        </div>
+        ${r.description ? `<p class="card-desc">${h(r.description)}</p>` : ''}
+      </div>
+      <div class="card-side">
+        <div class="price ${priceClass}">${h(r.price||'?')}</div>
+        ${link}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── UI helpers ──
+let _stepInterval;
+function showLoad(steps) {
+  clearInterval(_stepInterval);
+  hideAll();
+  document.getElementById('loading').classList.add('visible');
+  const el = document.getElementById('steps');
+  el.innerHTML = steps.map(s=>`<span>${s}</span>`).join('');
+  let i = 0;
+  _stepInterval = setInterval(() => {
+    el.querySelectorAll('span').forEach((s,idx) => s.style.opacity = idx === i % steps.length ? '1' : '0.3');
+    i++;
+  }, 1400);
+}
+function hideLoad() {
+  clearInterval(_stepInterval);
+  document.getElementById('loading').classList.remove('visible');
+}
+function hideAll() {
+  hideLoad();
+  document.getElementById('results-area').style.display = 'none';
+  document.getElementById('err-area').style.display = 'none';
+}
+function showErr(msg) {
+  hideAll();
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-area').style.display = 'block';
+}
+function showResults(title, count, identified, query) {
+  hideLoad();
+  document.getElementById('res-title').textContent = title;
+  document.getElementById('res-count').textContent = `${count||0} result${count===1?'':'s'} found`;
+  const info = document.getElementById('id-info');
+  if (identified) {
+    info.style.display = 'block';
+    info.innerHTML = `<strong>AI identified: ${h(identified)}</strong>Searched for: ${h(query||'')}`;
+  } else { info.style.display = 'none'; }
+  const hasStyle = styleProfile && allResults.some(r => r.style_match);
+  document.getElementById('filter-bar').style.display = count > 0 ? 'flex' : 'none';
+  // Add/remove style-match sort option dynamically
+  const sortEl = document.getElementById('sort');
+  const hasMatchOpt = [...sortEl.options].some(o => o.value === 'match');
+  if (hasStyle && !hasMatchOpt) {
+    const opt = document.createElement('option'); opt.value = 'match'; opt.textContent = 'Style match';
+    sortEl.appendChild(opt);
+  } else if (!hasStyle && hasMatchOpt) {
+    [...sortEl.options].find(o => o.value === 'match')?.remove();
+  }
+  document.getElementById('results-area').style.display = 'block';
+  renderCards();
+}
+function h(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
