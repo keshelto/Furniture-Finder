@@ -15,6 +15,16 @@
       --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    .skip-link {
+      position: absolute; left: 12px; top: -48px; background: #fff; color: var(--accent-dark);
+      padding: 8px 12px; border-radius: 8px; z-index: 1000; font-weight: 700; text-decoration: none;
+      border: 2px solid var(--accent-dark);
+    }
+    .skip-link:focus { top: 12px; }
 
     /* Header */
     header { background: var(--accent-dark); color: #fff; padding: 18px 24px; display: flex; align-items: center; gap: 12px; }
@@ -162,6 +172,10 @@
     .price.free { color: var(--warn); }
     .btn-view { display: inline-block; padding: 6px 14px; background: var(--accent); color: #fff; border-radius: 6px; text-decoration: none; font-size: .8rem; font-weight: 600; transition: background .2s; }
     .btn-view:hover { background: var(--accent-dark); }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, .upload-area:focus-visible, .card-header:focus-visible {
+      outline: 3px solid #0ea5e9;
+      outline-offset: 2px;
+    }
 
     /* State boxes */
     .state-box { background: var(--surface); border-radius: var(--r); padding: 36px 20px; text-align: center; box-shadow: var(--shadow); }
@@ -177,6 +191,7 @@
   </style>
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <header>
   <span class="logo">🛋️</span>
   <div>
@@ -185,11 +200,12 @@
   </div>
 </header>
 
-<main>
+<main id="main-content">
 
   <!-- ① Home Style / Mood Board -->
   <div class="card" id="style-card">
-    <div class="card-header open" onclick="toggleCard('style-card')">
+    <div class="card-header open" role="button" tabindex="0" aria-expanded="true" aria-controls="style-body"
+         onclick="toggleCard('style-card')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCard('style-card')}">
       <h2>🎨 My Home Style <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(optional — improves results)</span></h2>
       <span class="chevron">▼</span>
     </div>
@@ -199,19 +215,21 @@
         use it to find furniture that actually matches your space.
       </p>
 
-      <div class="upload-area" id="mood-upload"
+      <div class="upload-area" id="mood-upload" role="button" tabindex="0" aria-label="Upload home style photos"
+           aria-describedby="mood-upload-help"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerFileInput('mood-input')}"
            ondragover="dragOver(event,'mood-upload')" ondragleave="dragLeave('mood-upload')" ondrop="dropMood(event)">
         <input type="file" id="mood-input" accept="image/*" multiple onchange="moodFilesSelected(this.files)" />
         <div class="icon">🏠</div>
         <p><strong>Click or drag photos of your home</strong></p>
-        <p>Up to 5 photos — bedroom, living room, kitchen etc.</p>
+        <p id="mood-upload-help">Up to 5 photos — bedroom, living room, kitchen etc.</p>
       </div>
 
       <div class="preview-grid" id="mood-previews"></div>
 
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="analyse-btn" onclick="analyseStyle()" disabled>✨ Analyse My Style</button>
-        <button class="btn btn-secondary btn-clear-style" id="clear-style-btn" onclick="clearStyle()" style="display:none">✕ Clear Style</button>
+        <button type="button" class="btn btn-primary" id="analyse-btn" onclick="analyseStyle()" disabled>✨ Analyse My Style</button>
+        <button type="button" class="btn btn-secondary btn-clear-style" id="clear-style-btn" onclick="clearStyle()" style="display:none">✕ Clear Style</button>
       </div>
 
       <div id="style-result" style="display:none"></div>
@@ -221,66 +239,69 @@
   <!-- ② Search -->
   <div class="card">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="text" onclick="switchTab('text')">🔍 Search by Text</button>
-      <button class="tab-btn" data-tab="image" onclick="switchTab('image')">📷 Search by Photo</button>
+      <button type="button" class="tab-btn active" data-tab="text" role="tab" aria-selected="true" aria-controls="panel-text" onclick="switchTab('text')">🔍 Search by Text</button>
+      <button type="button" class="tab-btn" data-tab="image" role="tab" aria-selected="false" aria-controls="panel-image" onclick="switchTab('image')">📷 Search by Photo</button>
     </div>
 
     <!-- Text -->
-    <div class="panel" id="panel-text">
+    <div class="panel" id="panel-text" role="tabpanel" aria-hidden="false">
       <div class="row">
         <div class="field" style="flex:2">
-          <label>What are you looking for?</label>
+          <label for="q">What are you looking for?</label>
           <input id="q" type="text" placeholder="e.g. oak dining table, grey corner sofa, IKEA wardrobe…"
                  onkeydown="if(event.key==='Enter')doTextSearch()" />
         </div>
         <div class="field">
-          <label>Location (optional)</label>
+          <label for="loc">Location (optional)</label>
           <input id="loc" type="text" placeholder="e.g. London"
                  onkeydown="if(event.key==='Enter')doTextSearch()" />
         </div>
-        <button class="btn btn-primary" style="align-self:flex-end" onclick="doTextSearch()">Find Deals</button>
+        <button type="button" class="btn btn-primary" style="align-self:flex-end" onclick="doTextSearch()">Find Deals</button>
       </div>
     </div>
 
     <!-- Image -->
-    <div class="panel hidden" id="panel-image">
-      <div class="upload-area" id="img-upload"
+    <div class="panel hidden" id="panel-image" role="tabpanel" aria-hidden="true">
+      <div class="upload-area" id="img-upload" role="button" tabindex="0" aria-label="Upload furniture photo"
+           aria-describedby="img-upload-help"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerFileInput('img-input')}"
            ondragover="dragOver(event,'img-upload')" ondragleave="dragLeave('img-upload')" ondrop="dropImg(event)">
         <input type="file" id="img-input" accept="image/*" onchange="imgFileSelected(this.files[0])" />
         <div class="icon">🪑</div>
         <p><strong>Click or drag a photo of furniture you like</strong></p>
-        <p>We'll identify it and find similar deals</p>
+        <p id="img-upload-help">We'll identify it and find similar deals</p>
       </div>
 
       <div class="img-preview" id="img-preview">
-        <img id="img-thumb" src="" alt="Preview" />
-        <button class="btn-rm" onclick="removeImg()">✕</button>
+        <img id="img-thumb" src="" alt="Selected furniture preview" />
+        <button type="button" class="btn-rm" onclick="removeImg()" aria-label="Remove selected image">✕</button>
       </div>
 
       <div class="row" style="margin-top:12px">
-        <button class="btn btn-secondary" onclick="document.getElementById('cam-input').click()" style="flex:0 0 auto">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('cam-input').click()" style="flex:0 0 auto">
           📷 Take Photo
           <input type="file" id="cam-input" accept="image/*" capture="environment"
                  style="display:none" onchange="imgFileSelected(this.files[0])" />
         </button>
         <div class="field">
+          <label for="loc2" class="sr-only">Location (optional)</label>
           <input id="loc2" type="text" placeholder="Location (optional)" />
         </div>
-        <button class="btn btn-primary" id="img-search-btn" onclick="doImageSearch()" disabled style="flex:0 0 auto">Find Similar</button>
+        <button type="button" class="btn btn-primary" id="img-search-btn" onclick="doImageSearch()" disabled style="flex:0 0 auto">Find Similar</button>
       </div>
     </div>
   </div>
 
   <!-- Loading -->
-  <div class="loading" id="loading">
+  <div class="loading" id="loading" role="status" aria-live="polite">
     <div class="spinner"></div>
     <div class="loading-steps" id="steps"></div>
   </div>
 
   <!-- Results -->
-  <div id="results-area" style="display:none">
+  <div id="results-area" style="display:none" aria-live="polite">
     <div class="results-header">
-      <h2 id="res-title">Results</h2>
+      <h2 id="res-title" tabindex="-1">Results</h2>
       <span class="results-count" id="res-count"></span>
     </div>
     <div id="id-info" class="id-badge" style="display:none"></div>
@@ -298,7 +319,7 @@
   </div>
 
   <!-- Error -->
-  <div id="err-area" style="display:none" class="state-box error">
+  <div id="err-area" style="display:none" class="state-box error" role="alert" aria-live="assertive" tabindex="-1">
     <div class="icon">⚠️</div>
     <h3>Something went wrong</h3>
     <p id="err-msg"></p>
@@ -324,13 +345,27 @@ function toggleCard(id) {
   const body = document.querySelector(`#${id} .card-body`);
   header.classList.toggle('open');
   body.classList.toggle('hidden');
+  header.setAttribute('aria-expanded', String(!body.classList.contains('hidden')));
 }
 
 // ── tab switch ──
 function switchTab(t) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
-  document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
-  document.getElementById('panel-' + t).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const active = b.dataset.tab === t;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', String(active));
+  });
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.add('hidden');
+    p.setAttribute('aria-hidden', 'true');
+  });
+  const activePanel = document.getElementById('panel-' + t);
+  activePanel.classList.remove('hidden');
+  activePanel.setAttribute('aria-hidden', 'false');
+}
+
+function triggerFileInput(inputId) {
+  document.getElementById(inputId)?.click();
 }
 
 // ── drag-drop helpers ──
@@ -353,7 +388,7 @@ function addMoodFile(f) {
     const div = document.createElement('div');
     div.className = 'preview-thumb';
     div.id = 'mood-thumb-' + idx;
-    div.innerHTML = `<img src="${ev.target.result}" /><button onclick="removeMood(${idx})">✕</button>`;
+    div.innerHTML = `<img src="${ev.target.result}" alt="Home style photo ${idx + 1}" /><button type="button" aria-label="Remove home style photo ${idx + 1}" onclick="removeMood(${idx})">✕</button>`;
     grid.appendChild(div);
     document.getElementById('analyse-btn').disabled = false;
   };
@@ -367,7 +402,7 @@ function removeMood(idx) {
     reader.onload = ev => {
       const div = document.createElement('div');
       div.className = 'preview-thumb';
-      div.innerHTML = `<img src="${ev.target.result}" /><button onclick="removeMood(${i})">✕</button>`;
+      div.innerHTML = `<img src="${ev.target.result}" alt="Home style photo ${i + 1}" /><button type="button" aria-label="Remove home style photo ${i + 1}" onclick="removeMood(${i})">✕</button>`;
       document.getElementById('mood-previews').appendChild(div);
     };
     reader.readAsDataURL(f);
@@ -501,7 +536,7 @@ function renderCards() {
                  r.style_match === 'Style clash' ? 'badge-clash' : '';
     const priceClass = (r.price||'').toLowerCase().includes('free') ? 'free' : '';
     const link = r.url && r.url !== '#'
-      ? `<a href="${h(r.url)}" target="_blank" rel="noopener" class="btn-view">View →</a>`
+      ? `<a href="${h(r.url)}" target="_blank" rel="noopener" class="btn-view" aria-label="View listing for ${h(r.title||'this item')} (opens in a new tab)">View →</a>`
       : `<span style="font-size:.75rem;color:var(--muted)">${h(r.site||'')}</span>`;
     return `
     <div class="result-card">
@@ -530,6 +565,7 @@ let _stepInterval;
 function showLoad(steps) {
   clearInterval(_stepInterval);
   hideAll();
+  document.getElementById('main-content').setAttribute('aria-busy', 'true');
   document.getElementById('loading').classList.add('visible');
   const el = document.getElementById('steps');
   el.innerHTML = steps.map(s=>`<span>${s}</span>`).join('');
@@ -541,6 +577,7 @@ function showLoad(steps) {
 }
 function hideLoad() {
   clearInterval(_stepInterval);
+  document.getElementById('main-content').setAttribute('aria-busy', 'false');
   document.getElementById('loading').classList.remove('visible');
 }
 function hideAll() {
@@ -551,7 +588,9 @@ function hideAll() {
 function showErr(msg) {
   hideAll();
   document.getElementById('err-msg').textContent = msg;
-  document.getElementById('err-area').style.display = 'block';
+  const errArea = document.getElementById('err-area');
+  errArea.style.display = 'block';
+  errArea.focus();
 }
 function showResults(title, count, identified, query) {
   hideLoad();
@@ -575,6 +614,7 @@ function showResults(title, count, identified, query) {
   }
   document.getElementById('results-area').style.display = 'block';
   renderCards();
+  document.getElementById('res-title').focus();
 }
 function h(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
